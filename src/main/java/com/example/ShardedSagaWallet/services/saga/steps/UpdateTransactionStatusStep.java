@@ -5,7 +5,7 @@ import com.example.ShardedSagaWallet.enums.SagaSteps;
 import com.example.ShardedSagaWallet.enums.TransactionStatus;
 import com.example.ShardedSagaWallet.repositories.TransactionRepository;
 import com.example.ShardedSagaWallet.services.saga.SagaContext;
-import com.example.ShardedSagaWallet.services.saga.SagaStep;
+import com.example.ShardedSagaWallet.services.saga.SagaStepInterface;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UpdateTransactionStatusStep implements SagaStep {
+public class UpdateTransactionStatusStep implements SagaStepInterface {
     private final TransactionRepository transactionRepository;
 
     @Override
@@ -45,7 +45,8 @@ public class UpdateTransactionStatusStep implements SagaStep {
 
         log.info("Compensating transaction status for transaction {}", transactionId);
 
-        TransactionStatus originalTransactionStatus = TransactionStatus.valueOf(sagaContext.getString("originalTransactionStatus"));
+        TransactionStatus originalTransactionStatus = TransactionStatus
+                .valueOf(sagaContext.getString("originalTransactionStatus"));
 
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
