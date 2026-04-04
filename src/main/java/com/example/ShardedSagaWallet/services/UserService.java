@@ -5,6 +5,7 @@ import com.example.ShardedSagaWallet.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ import java.util.List;
 public class UserService {
     private final UserRepository userRepository;
 
+    @Transactional
     public User createUser(User user) {
         log.info("Creating user: {}", user.getEmail());
         User newUser = userRepository.save(user);
