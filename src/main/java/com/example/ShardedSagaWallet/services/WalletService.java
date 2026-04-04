@@ -16,12 +16,29 @@ import java.util.List;
 public class WalletService {
     private final WalletRepository walletRepository;
 
+    public Wallet createWallet(Long userId) {
+        log.info("Creating wallet for user {}", userId);
+        Wallet wallet = Wallet.builder()
+                .userId(userId)
+                .isActive(true)
+                .balance(BigDecimal.ZERO)
+                .build();
+        wallet = walletRepository.save(wallet);
+        log.info("Wallet created with id {}", wallet.getId());
+        return wallet;
+    }
+
     public Wallet getWalletById(Long walletId) {
         return walletRepository.findById(walletId).orElseThrow(() -> new RuntimeException("Wallet not found"));
     }
 
     public List<Wallet> getWalletsByUserId(Long userId) {
         return walletRepository.findByUserId(userId);
+    }
+
+    public Wallet getWalletByUserId(Long userId) {
+        log.info("Getting wallet by user id {}", userId);
+        return walletRepository.findByUserId(userId).get(0);
     }
 
     @Transactional
