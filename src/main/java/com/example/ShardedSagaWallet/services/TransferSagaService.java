@@ -20,7 +20,7 @@ public class TransferSagaService {
     private final TransactionService transactionService;
 
     @Transactional
-    public Long createSagaData(
+    private Long createSagaData(
             Long fromWalletId,
             Long toWalletId,
             BigDecimal amount,
@@ -35,31 +35,30 @@ public class TransferSagaService {
                         Map.entry("fromWalletId", fromWalletId),
                         Map.entry("toWalletId", toWalletId),
                         Map.entry("amount", amount),
-                        Map.entry("description", description)
-                ))
+                        Map.entry("description", description)))
                 .build();
 
         Long sagaInstanceId = sagaOrchestrator.startSaga(sagaContext);
 
         log.info("Saga instance created with id {}", sagaInstanceId);
 
-        transactionService.updateTransactionWithSagaInstanceId(transaction.getId(),sagaInstanceId);
+        transactionService.updateTransactionWithSagaInstanceId(transaction.getId(), sagaInstanceId);
 
         return sagaInstanceId;
     }
 
-    public Long initiateTransfer (
+    public Long initiateTransfer(
             Long fromWalletId,
             Long toWalletId,
             BigDecimal amount,
-            String description){
+            String description) {
 
-        Long sagaInstanceId = createSagaData(fromWalletId,toWalletId,amount,description);
+        Long sagaInstanceId = createSagaData(fromWalletId, toWalletId, amount, description);
         executeTransferSaga(sagaInstanceId);
         return sagaInstanceId;
     }
 
-    public void executeTransferSaga(Long sagaInstanceId) {
+    private void executeTransferSaga(Long sagaInstanceId) {
         log.info("Executing transfer saga with id {}", sagaInstanceId);
 
         try {
