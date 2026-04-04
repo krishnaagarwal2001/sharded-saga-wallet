@@ -1,15 +1,15 @@
 dataSources:
   shardWallet1:
-    jdbcUrl: jdbc:mysql://localhost:3306/shardWallet1
-    username: root
-    password:
+    jdbcUrl: $${SHARD_WALLET_1_JDBC_URL::}
+    username: $${SHARD_WALLET_1_USERNAME::}
+    password: $${SHARD_WALLET_1_PASSWORD::}
     driverClassName: com.mysql.cj.jdbc.Driver
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
 
   shardWallet2:
-    jdbcUrl: jdbc:mysql://localhost:3306/shardWallet2
-    username: root
-    password:
+    jdbcUrl: $${SHARD_WALLET_2_JDBC_URL::}
+    username: $${SHARD_WALLET_2_USERNAME::}
+    password: $${SHARD_WALLET_2_PASSWORD::}
     driverClassName: com.mysql.cj.jdbc.Driver
     dataSourceClassName: com.zaxxer.hikari.HikariDataSource
 
