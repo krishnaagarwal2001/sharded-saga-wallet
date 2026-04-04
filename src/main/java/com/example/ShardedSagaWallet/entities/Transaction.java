@@ -4,6 +4,7 @@ import com.example.ShardedSagaWallet.enums.TransactionStatus;
 import com.example.ShardedSagaWallet.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "transaction")
+@Builder
 public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

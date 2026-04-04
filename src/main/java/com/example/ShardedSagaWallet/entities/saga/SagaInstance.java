@@ -3,6 +3,7 @@ package com.example.ShardedSagaWallet.entities.saga;
 import com.example.ShardedSagaWallet.enums.SagaStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -14,6 +15,7 @@ import org.apache.calcite.model.JsonType;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "saga_instance")
+@Builder
 public class SagaInstance {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,6 +29,6 @@ public class SagaInstance {
     @Column(name = "context", columnDefinition = "json")
     private String context;
 
-    @Column(name = "current_step", nullable = false)
+    @Column(name = "current_step")
     private String currentStep;
 }

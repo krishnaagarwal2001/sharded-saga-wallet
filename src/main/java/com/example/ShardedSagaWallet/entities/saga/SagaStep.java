@@ -3,6 +3,7 @@ package com.example.ShardedSagaWallet.entities.saga;
 import com.example.ShardedSagaWallet.enums.StepStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -11,6 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "saga_step")
+@Builder
 public class SagaStep {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
