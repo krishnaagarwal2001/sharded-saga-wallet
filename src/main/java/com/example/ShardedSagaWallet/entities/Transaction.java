@@ -32,15 +32,17 @@ public class Transaction {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
+    @Builder.Default
     private TransactionStatus status = TransactionStatus.PENDING;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false)
+    @Builder.Default
     private TransactionType type = TransactionType.TRANSFER;
 
     @Column(name = "description", nullable = false)
     private String description;
 
-    @Column(name = "saga_instance_id", nullable = false)
+    @Column(name = "saga_instance_id")
     private Long sagaInstanceId;
 }

@@ -1,5 +1,6 @@
 package com.example.ShardedSagaWallet.services.saga;
 
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -9,6 +10,7 @@ import java.util.Map;
 
 @Data
 @NoArgsConstructor
+@Builder
 public class SagaContext {
 
     private Map<String, Object> data;
