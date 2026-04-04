@@ -60,6 +60,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
             throw new RuntimeException("Saga step not found");
         }
 
+        //we are finding in db in case of retries
         SagaStep sagaStepDB = sagaStepRepository
                 .findBySagaInstanceIdAndStepNameAndStatus(sagaInstanceId, stepName, StepStatus.PENDING).orElse(
                         SagaStep.builder().sagaInstanceId(sagaInstanceId).stepName(stepName).status(StepStatus.PENDING)
@@ -116,6 +117,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
             throw new RuntimeException("Saga step not found");
         }
 
+        //we are finding in db in case of retries
         SagaStep sagaStepDB = sagaStepRepository
                 .findBySagaInstanceIdAndStepNameAndStatus(sagaInstanceId, stepName, StepStatus.COMPLETED).orElse(
                         null // no such step found in the db
