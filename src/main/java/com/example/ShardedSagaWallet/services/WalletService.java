@@ -5,6 +5,7 @@ import com.example.ShardedSagaWallet.repositories.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -22,6 +23,7 @@ public class WalletService {
                 .userId(userId)
                 .isActive(true)
                 .balance(BigDecimal.ZERO)
+                .previousBalance(BigDecimal.ZERO)
                 .build();
         wallet = walletRepository.save(wallet);
         log.info("Wallet created with id {}", wallet.getId());
@@ -29,7 +31,20 @@ public class WalletService {
     }
 
     public Wallet getWalletById(Long walletId) {
+        log.info("Getting wallet with id {}", walletId);
         return walletRepository.findById(walletId).orElseThrow(() -> new RuntimeException("Wallet not found"));
+    }
+
+    /*
+         It is a private method, so no need for @Transactional
+         (Spring AOP does not apply to private methods).
+
+         This method must be called from within an active @Transactional context,
+         otherwise pessimistic locking and dirty checking will not work as expected.
+     */
+    private Wallet getWalletWithLock(Long walletId) {
+        log.info("Getting wallet (lock) with id {}", walletId);
+        return walletRepository.findByIdWithLock(walletId).orElseThrow(() -> new RuntimeException("Wallet not found"));
     }
 
     public List<Wallet> getWalletsByUserId(Long userId) {
@@ -38,31 +53,62 @@ public class WalletService {
 
     public Wallet getWalletByUserId(Long userId) {
         log.info("Getting wallet by user id {}", userId);
-        return walletRepository.findByUserId(userId).get(0);
+        return walletRepository.findByUserId(userId)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
     }
 
-    @Transactional
-    public void debit(Long walletId, BigDecimal amount) {
-        log.info("Debiting {} from wallet {}", amount, walletId);
+    /*
+        `@Transactional(propagation = Propagation.REQUIRES_NEW)` ensures that the method always
+        executes in a **new, independent transaction**. If an existing transaction is present,
+        it is **suspended**, and a new one is started.
 
-        Wallet wallet = getWalletById(walletId);
+        This is used in the `credit` and `debit` methods of `WalletService`
+        because they are invoked from Saga steps as well.
 
-        wallet.debit(amount);
-        walletRepository.save(wallet);
+        Each Saga step should run in its **own transaction**. Without `REQUIRES_NEW`,
+        these methods would join the existing transaction, and if a later step fails,
+        the entire transaction would be rolled back — including previously successful steps.
 
-        log.info("Debit successful for wallet {}", walletId);
+        By using `REQUIRES_NEW`, each operation (like debit or credit) is **committed independently**,
+        ensuring that completed steps are not rolled back automatically and can be compensated if
+        needed.
+    */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Wallet debit(Long walletId, BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Debit Amount must be greater than zero");
+        }
+
+        Wallet wallet = getWalletWithLock(walletId);
+
+        log.info("Wallet {} fetched with balance {}", walletId, wallet.getBalance());
+
+        wallet.debit(amount); // validation inside entity
+
+        log.info("Wallet {} debited. Balance: {} -> {}",
+                walletId, wallet.getPreviousBalance(), wallet.getBalance());
+
+        return wallet;
     }
 
-    @Transactional
-    public void credit(Long walletId, BigDecimal amount) {
-        log.info("Crediting {} from wallet {}", amount, walletId);
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Wallet credit(Long walletId, BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Credit Amount must be greater than zero");
+        }
 
-        Wallet wallet = getWalletById(walletId);
+        Wallet wallet = getWalletWithLock(walletId);
+
+        log.info("Wallet {} fetched with balance {}", walletId, wallet.getBalance());
 
         wallet.credit(amount);
-        walletRepository.save(wallet);
 
-        log.info("Credit successful for wallet {}", walletId);
+        log.info("Wallet {} credited. Balance: {} -> {}",
+                walletId, wallet.getPreviousBalance(), wallet.getBalance());
+
+        return wallet;
     }
 
     @Transactional

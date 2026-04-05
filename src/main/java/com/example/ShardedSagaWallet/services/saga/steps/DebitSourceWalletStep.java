@@ -2,10 +2,10 @@ package com.example.ShardedSagaWallet.services.saga.steps;
 
 import com.example.ShardedSagaWallet.entities.Wallet;
 import com.example.ShardedSagaWallet.enums.SagaSteps;
-import com.example.ShardedSagaWallet.repositories.WalletRepository;
+import com.example.ShardedSagaWallet.services.WalletService;
 import com.example.ShardedSagaWallet.services.saga.SagaContext;
 import com.example.ShardedSagaWallet.services.saga.SagaStepInterface;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,7 +17,7 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class DebitSourceWalletStep implements SagaStepInterface {
 
-    private final WalletRepository walletRepository;
+    private final WalletService walletService;
 
     @Override
     @Transactional
@@ -27,20 +27,12 @@ public class DebitSourceWalletStep implements SagaStepInterface {
 
         log.info("Debiting source wallet {} with amount {}", fromWalletId, amount);
 
-        Wallet wallet = walletRepository.findByIdWithLock(fromWalletId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+        Wallet wallet = walletService.debit(fromWalletId, amount);
 
-        log.info("Wallet fetched with balance {}", wallet.getBalance());
-        sagaContext.put("originalSourceWalletBalance", wallet.getBalance());
-
-        wallet.debit(amount);
-        walletRepository.save(wallet);
-
-        log.info("Wallet saved with balance {}", wallet.getBalance());
+        sagaContext.put("originalSourceWalletBalance", wallet.getPreviousBalance());
         sagaContext.put("sourceWalletBalanceAfterDebit", wallet.getBalance());
 
         log.info("Debit source wallet step executed successfully");
-
         return true;
     }
 
@@ -52,21 +44,11 @@ public class DebitSourceWalletStep implements SagaStepInterface {
 
         log.info("Compensating source wallet {} with amount {}", fromWalletId, amount);
 
-        Wallet wallet = walletRepository.findByIdWithLock(fromWalletId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+        Wallet wallet = walletService.credit(fromWalletId, amount);
 
-        log.info("Wallet fetched with balance {}", wallet.getBalance());
-        sagaContext.put("sourceWalletBalanceBeforeCreditCompensation", wallet.getBalance());
-
-
-        wallet.credit(amount);
-        walletRepository.save(wallet);
-
-        log.info("Wallet saved with balance {}", wallet.getBalance());
         sagaContext.put("sourceWalletBalanceAfterCreditCompensation", wallet.getBalance());
 
-        log.info("Compensating source wallet step executed successfully");
-
+        log.info("Compensation executed successfully");
         return true;
     }
 

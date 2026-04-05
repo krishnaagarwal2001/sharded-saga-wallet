@@ -26,7 +26,12 @@ public class Wallet {
     private Boolean isActive;
 
     @Column(name = "balance", nullable = false)
+    @Builder.Default
     private BigDecimal balance = BigDecimal.ZERO;
+
+    @Column(name = "previous_balance", nullable = false)
+    @Builder.Default
+    private BigDecimal previousBalance = BigDecimal.ZERO;
 
     public boolean hasSufficientBalance(BigDecimal amount) {
         return balance.compareTo(amount) >= 0;
@@ -36,10 +41,12 @@ public class Wallet {
         if (!hasSufficientBalance(amount)) {
             throw new IllegalArgumentException("Insufficient balance");
         }
+        previousBalance = balance;
         balance = balance.subtract(amount);
     }
 
     public void credit(BigDecimal amount) {
+        previousBalance = balance;
         balance = balance.add(amount);
     }
 }

@@ -2,6 +2,7 @@ package com.example.ShardedSagaWallet.services;
 
 import com.example.ShardedSagaWallet.entities.Transaction;
 import com.example.ShardedSagaWallet.enums.TransactionStatus;
+import com.example.ShardedSagaWallet.enums.TransactionType;
 import com.example.ShardedSagaWallet.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class TransactionService {
                 .amount(amount)
                 .description(description)
                 .status(TransactionStatus.PENDING)
+                .type(TransactionType.TRANSFER)
                 .build();
 
         Transaction savedTransaction = transactionRepository.save(transaction);

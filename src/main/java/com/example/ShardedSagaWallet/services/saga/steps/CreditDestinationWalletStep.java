@@ -2,10 +2,10 @@ package com.example.ShardedSagaWallet.services.saga.steps;
 
 import com.example.ShardedSagaWallet.entities.Wallet;
 import com.example.ShardedSagaWallet.enums.SagaSteps;
-import com.example.ShardedSagaWallet.repositories.WalletRepository;
+import com.example.ShardedSagaWallet.services.WalletService;
 import com.example.ShardedSagaWallet.services.saga.SagaContext;
 import com.example.ShardedSagaWallet.services.saga.SagaStepInterface;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,28 +17,19 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class CreditDestinationWalletStep implements SagaStepInterface {
 
-    private final WalletRepository walletRepository;
+    private final WalletService walletService;
 
     @Override
     @Transactional
     public boolean execute(SagaContext sagaContext) {
-        // Step 1: Get the destination wallet id from the context
         Long toWalletId = sagaContext.getLong("toWalletId");
         BigDecimal amount = sagaContext.getBigDecimal("amount");
 
         log.info("Crediting destination wallet {} with amount {}", toWalletId, amount);
 
-        // Step 2: Fetch the destination wallet from the database with a lock
-        Wallet wallet = walletRepository.findById(toWalletId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+        Wallet wallet = walletService.credit(toWalletId, amount);
 
-        log.info("Wallet fetched with balance {}", wallet.getBalance());
-        sagaContext.put("originalToWalletBalance", wallet.getBalance());
-
-        // Step 3: Credit the destination wallet
-        wallet.credit(amount);
-        walletRepository.save(wallet);
-        log.info("Wallet saved with balance {}", wallet.getBalance());
+        sagaContext.put("originalToWalletBalance", wallet.getPreviousBalance());
         sagaContext.put("toWalletBalanceAfterCredit", wallet.getBalance());
 
         log.info("Credit destination wallet step executed successfully");
@@ -48,22 +39,13 @@ public class CreditDestinationWalletStep implements SagaStepInterface {
     @Override
     @Transactional
     public boolean compensate(SagaContext sagaContext) {
-        // Step 1: Get the destination wallet id from the context
         Long toWalletId = sagaContext.getLong("toWalletId");
         BigDecimal amount = sagaContext.getBigDecimal("amount");
 
         log.info("Compensation credit of destination wallet {} with amount {}", toWalletId, amount);
 
-        // Step 2: Fetch the destination wallet from the database with a lock
-        Wallet wallet = walletRepository.findById(toWalletId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+        Wallet wallet = walletService.debit(toWalletId, amount);
 
-        log.info("Wallet fetched with balance {}", wallet.getBalance());
-
-        // Step 3: Credit the destination wallet
-        wallet.debit(amount);
-        walletRepository.save(wallet);
-        log.info("Wallet saved with balance {}", wallet.getBalance());
         sagaContext.put("toWalletBalanceAfterCreditCompensation", wallet.getBalance());
 
         log.info("Credit compensation of destination wallet step executed successfully");
