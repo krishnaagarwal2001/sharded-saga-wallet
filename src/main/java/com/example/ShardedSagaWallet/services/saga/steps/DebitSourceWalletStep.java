@@ -23,11 +23,12 @@ public class DebitSourceWalletStep implements SagaStepInterface {
     @Transactional
     public boolean execute(SagaContext sagaContext) {
         Long fromWalletId = sagaContext.getLong("fromWalletId");
+        Long fromUserId = sagaContext.getLong("fromUserId");
         BigDecimal amount = sagaContext.getBigDecimal("amount");
 
         log.info("Debiting source wallet {} with amount {}", fromWalletId, amount);
 
-        Wallet wallet = walletService.debit(fromWalletId, amount);
+        Wallet wallet = walletService.debit(fromWalletId, fromUserId, amount);
 
         sagaContext.put("originalSourceWalletBalance", wallet.getPreviousBalance());
         sagaContext.put("sourceWalletBalanceAfterDebit", wallet.getBalance());
@@ -40,11 +41,12 @@ public class DebitSourceWalletStep implements SagaStepInterface {
     @Transactional
     public boolean compensate(SagaContext sagaContext) {
         Long fromWalletId = sagaContext.getLong("fromWalletId");
+        Long fromUserId = sagaContext.getLong("fromUserId");
         BigDecimal amount = sagaContext.getBigDecimal("amount");
 
         log.info("Compensating source wallet {} with amount {}", fromWalletId, amount);
 
-        Wallet wallet = walletService.credit(fromWalletId, amount);
+        Wallet wallet = walletService.credit(fromWalletId, fromUserId, amount);
 
         sagaContext.put("sourceWalletBalanceAfterCreditCompensation", wallet.getBalance());
 

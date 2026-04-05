@@ -22,7 +22,9 @@ public class TransferSagaService {
     @Transactional
     private Long createSagaData(
             Long fromWalletId,
+            Long fromUserId,
             Long toWalletId,
+            Long toUserId,
             BigDecimal amount,
             String description) {
 
@@ -33,7 +35,9 @@ public class TransferSagaService {
                 .data(Map.ofEntries(
                         Map.entry("transactionId", transaction.getId()),
                         Map.entry("fromWalletId", fromWalletId),
+                        Map.entry("fromUserId", fromUserId),
                         Map.entry("toWalletId", toWalletId),
+                        Map.entry("toUserId", toUserId),
                         Map.entry("amount", amount),
                         Map.entry("description", description)))
                 .build();
@@ -49,11 +53,13 @@ public class TransferSagaService {
 
     public Long initiateTransfer(
             Long fromWalletId,
+            Long fromUserId,
             Long toWalletId,
+            Long toUserId,
             BigDecimal amount,
             String description) {
 
-        Long sagaInstanceId = createSagaData(fromWalletId, toWalletId, amount, description);
+        Long sagaInstanceId = createSagaData(fromWalletId,fromUserId, toWalletId,toUserId, amount, description);
         executeTransferSaga(sagaInstanceId);
         return sagaInstanceId;
     }

@@ -42,9 +42,10 @@ public class WalletService {
          This method must be called from within an active @Transactional context,
          otherwise pessimistic locking and dirty checking will not work as expected.
      */
-    private Wallet getWalletWithLock(Long walletId) {
+    private Wallet getWalletWithLock(Long walletId, Long userId) {
         log.info("Getting wallet (lock) with id {}", walletId);
-        return walletRepository.findByIdWithLock(walletId).orElseThrow(() -> new RuntimeException("Wallet not found"));
+        return walletRepository.findByIdAndUserIdWithLock(walletId, userId)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
     }
 
     public List<Wallet> getWalletsByUserId(Long userId) {
@@ -74,14 +75,14 @@ public class WalletService {
         By using `REQUIRES_NEW`, each operation (like debit or credit) is **committed independently**,
         ensuring that completed steps are not rolled back automatically and can be compensated if
         needed.
-    */
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Wallet debit(Long walletId, BigDecimal amount) {
+    public Wallet debit(Long walletId, Long userId, BigDecimal amount) {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeException("Debit Amount must be greater than zero");
         }
 
-        Wallet wallet = getWalletWithLock(walletId);
+        Wallet wallet = getWalletWithLock(walletId, userId);
 
         log.info("Wallet {} fetched with balance {}", walletId, wallet.getBalance());
 
@@ -94,12 +95,12 @@ public class WalletService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public Wallet credit(Long walletId, BigDecimal amount) {
+    public Wallet credit(Long walletId, Long userId, BigDecimal amount) {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeException("Credit Amount must be greater than zero");
         }
 
-        Wallet wallet = getWalletWithLock(walletId);
+        Wallet wallet = getWalletWithLock(walletId, userId);
 
         log.info("Wallet {} fetched with balance {}", walletId, wallet.getBalance());
 

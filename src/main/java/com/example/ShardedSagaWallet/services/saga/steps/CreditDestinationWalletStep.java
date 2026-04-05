@@ -23,11 +23,12 @@ public class CreditDestinationWalletStep implements SagaStepInterface {
     @Transactional
     public boolean execute(SagaContext sagaContext) {
         Long toWalletId = sagaContext.getLong("toWalletId");
+        Long toUserId = sagaContext.getLong("toUserId");
         BigDecimal amount = sagaContext.getBigDecimal("amount");
 
         log.info("Crediting destination wallet {} with amount {}", toWalletId, amount);
 
-        Wallet wallet = walletService.credit(toWalletId, amount);
+        Wallet wallet = walletService.credit(toWalletId, toUserId, amount);
 
         sagaContext.put("originalToWalletBalance", wallet.getPreviousBalance());
         sagaContext.put("toWalletBalanceAfterCredit", wallet.getBalance());
@@ -40,11 +41,12 @@ public class CreditDestinationWalletStep implements SagaStepInterface {
     @Transactional
     public boolean compensate(SagaContext sagaContext) {
         Long toWalletId = sagaContext.getLong("toWalletId");
+        Long toUserId = sagaContext.getLong("toUserId");
         BigDecimal amount = sagaContext.getBigDecimal("amount");
 
         log.info("Compensation credit of destination wallet {} with amount {}", toWalletId, amount);
 
-        Wallet wallet = walletService.debit(toWalletId, amount);
+        Wallet wallet = walletService.debit(toWalletId, toUserId, amount);
 
         sagaContext.put("toWalletBalanceAfterCreditCompensation", wallet.getBalance());
 
