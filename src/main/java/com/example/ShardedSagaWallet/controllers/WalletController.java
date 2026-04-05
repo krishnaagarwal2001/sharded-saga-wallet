@@ -5,6 +5,7 @@ import com.example.ShardedSagaWallet.dtos.CreditWalletRequestDTO;
 import com.example.ShardedSagaWallet.dtos.DebitWalletRequestDTO;
 import com.example.ShardedSagaWallet.entities.Wallet;
 import com.example.ShardedSagaWallet.services.WalletService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,7 @@ public class WalletController {
     private final WalletService walletService;
 
     @PostMapping
-    public ResponseEntity<Wallet> createWallet(@RequestBody CreateWalletRequestDTO request) {
+    public ResponseEntity<Wallet> createWallet(@Valid @RequestBody CreateWalletRequestDTO request) {
         try {
             Wallet newWallet = walletService.createWallet(request.getUserId());
             return ResponseEntity.status(HttpStatus.CREATED).body(newWallet);
@@ -43,15 +44,15 @@ public class WalletController {
         return ResponseEntity.ok(balance);
     }
 
-    @PostMapping("/{userId}/debit")
-    public ResponseEntity<Wallet> debitWallet(@PathVariable Long userId, @RequestBody DebitWalletRequestDTO request) {
-        Wallet wallet =walletService.debit(userId, request.getAmount());
+    @PostMapping("/debit")
+    public ResponseEntity<Wallet> debitWallet(@Valid @RequestBody DebitWalletRequestDTO request) {
+        Wallet wallet = walletService.debit(request.getWalletId(), request.getUserId(), request.getAmount());
         return ResponseEntity.ok(wallet);
     }
 
-    @PostMapping("/{userId}/credit")
-    public ResponseEntity<Wallet> creditWallet(@PathVariable Long userId, @RequestBody CreditWalletRequestDTO request) {
-        Wallet wallet = walletService.credit(userId, request.getAmount());
+    @PostMapping("/credit")
+    public ResponseEntity<Wallet> creditWallet(@Valid @RequestBody CreditWalletRequestDTO request) {
+        Wallet wallet = walletService.credit(request.getWalletId(), request.getUserId(), request.getAmount());
         return ResponseEntity.ok(wallet);
     }
 }

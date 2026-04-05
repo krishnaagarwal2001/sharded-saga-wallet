@@ -1,5 +1,6 @@
 package com.example.ShardedSagaWallet.dtos;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,5 +13,12 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DebitWalletRequestDTO {
+    @NotNull(message = "Amount is required")
     private BigDecimal amount;
+
+    @NotNull(message = "User Id is required")
+    private Long userId;
+
+    @NotNull(message = "Wallet Id is required")
+    private Long walletId;
 }

@@ -24,6 +24,7 @@ public class SagaInstance {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
+    @Builder.Default
     private SagaStatus status = SagaStatus.STARTED;
 
     @Type(JsonType.class)

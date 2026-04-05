@@ -3,6 +3,7 @@ package com.example.ShardedSagaWallet.controllers;
 import com.example.ShardedSagaWallet.dtos.TransferRequestDTO;
 import com.example.ShardedSagaWallet.dtos.TransferResponseDTO;
 import com.example.ShardedSagaWallet.services.TransferSagaService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,10 +22,12 @@ public class TransactionController {
     private final TransferSagaService transferSagaService;
 
     @PostMapping
-    public ResponseEntity<TransferResponseDTO> createTransaction(@RequestBody TransferRequestDTO transferRequestDTO) {
+    public ResponseEntity<TransferResponseDTO> createTransaction(@Valid @RequestBody TransferRequestDTO transferRequestDTO) {
         try {
             Long sagaInstanceId = transferSagaService.initiateTransfer(transferRequestDTO.getFromWalletId(),
-                    transferRequestDTO.getToWalletId(), transferRequestDTO.getAmount(),
+                    transferRequestDTO.getFromUserId(),
+                    transferRequestDTO.getToWalletId(), transferRequestDTO.getToUserId(),
+                    transferRequestDTO.getAmount(),
                     transferRequestDTO.getDescription());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(
