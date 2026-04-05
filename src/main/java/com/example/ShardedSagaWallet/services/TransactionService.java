@@ -48,6 +48,15 @@ public class TransactionService {
         log.info("Transaction updated with saga instance id {}", sagaInstanceId);
     }
 
+    @Transactional
+    public void markTransactionFailedBySagaInstanceId(Long sagaInstanceId) {
+        List<Transaction> transactions = transactionRepository.findBySagaInstanceId(sagaInstanceId);
+        for (Transaction transaction : transactions) {
+            transaction.setStatus(TransactionStatus.FAILED);
+            log.info("Transaction {} marked FAILED (saga {})", transaction.getId(), sagaInstanceId);
+        }
+    }
+
     public Transaction getTransactionById(Long transactionId) {
         return transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));

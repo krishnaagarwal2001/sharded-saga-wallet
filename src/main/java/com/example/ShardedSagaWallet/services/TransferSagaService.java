@@ -74,6 +74,7 @@ public class TransferSagaService {
                 if (!success) {
                     log.error("Failed to execute step {}", step.toString());
                     sagaOrchestrator.failSaga(sagaInstanceId);
+                    transactionService.markTransactionFailedBySagaInstanceId(sagaInstanceId);
                     return;
                 }
             }
@@ -83,7 +84,7 @@ public class TransferSagaService {
         } catch (Exception e) {
             log.error("Failed to execute transfer saga with id {}", sagaInstanceId, e);
             sagaOrchestrator.failSaga(sagaInstanceId);
-
+            transactionService.markTransactionFailedBySagaInstanceId(sagaInstanceId);
         }
     }
 }
