@@ -8,12 +8,14 @@ import com.example.ShardedSagaWallet.enums.StepStatus;
 import com.example.ShardedSagaWallet.repositories.SagaInstanceRepository;
 import com.example.ShardedSagaWallet.repositories.SagaStepRepository;
 
+import io.github.resilience4j.retry.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -24,6 +26,8 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
     private final SagaInstanceRepository sagaInstanceRepository;
     private final SagaStepRepository sagaStepRepository;
     private final SagaStepFactory sagaStepFactory;
+
+    private final Retry sagaCompensationRetry;
 
     @Override
     @Transactional
@@ -161,6 +165,36 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
 
     }
 
+    private boolean compensateStepWithRetry(Long sagaInstanceId, SagaSteps stepName) {
+
+        // Decorate the operation (compensateStep) with Resilience4j retry.
+        // Retry.decorateCallable takes a Retry instance and a Callable<T> (here
+        // Boolean)
+        // and returns a "retry-aware" Callable that will automatically retry on failure
+        // according to the Retry config.
+        java.util.concurrent.Callable<Boolean> decoratedCallable = Retry.decorateCallable(sagaCompensationRetry,
+                () -> compensateStep(sagaInstanceId, stepName));
+
+        try {
+            // Execute the decorated Callable.
+            // If the operation fails, Resilience4j retry logic automatically retries
+            // based on the configuration (maxAttempts, waitDuration, retryExceptions,
+            // etc.).
+            return decoratedCallable.call(); // call() throws Exception
+
+        } catch (Exception e) {
+            // Handle failures after all retries have been exhausted.
+            // Here, we log the error and could also send the step to a DLQ (Dead Letter
+            // Queue)
+            // or trigger an alert for manual intervention.
+            log.error("Compensation failed after retries for step {} of saga {}", stepName, sagaInstanceId, e);
+
+            // Return false to indicate that the compensation step ultimately failed
+            // despite retry attempts.
+            return false;
+        }
+    }
+
     @Override
     public SagaInstance getSagaInstance(Long sagaInstanceId) {
         return sagaInstanceRepository.findById(sagaInstanceId)
@@ -175,12 +209,15 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
         sagaInstance.markAsCompensating();
         sagaInstanceRepository.save(sagaInstance);
 
-        List<SagaStep> completedSteps = sagaStepRepository.findCompletedStepsBySagaInstanceId(sagaInstanceId);
-
         Boolean allCompensated = true;
 
+        List<SagaStep> completedSteps = sagaStepRepository.findCompletedStepsBySagaInstanceId(sagaInstanceId);
+
+        // Reverse the list to compensate steps in reverse order of completion
+        Collections.reverse(completedSteps);
+
         for (SagaStep step : completedSteps) { // TODO :- Steps can be compensated parallel
-            boolean compensated = compensateStep(sagaInstanceId, step.getStepName());
+            boolean compensated = compensateStepWithRetry(sagaInstanceId, step.getStepName());
 
             if (!compensated) {
                 allCompensated = false;
@@ -195,7 +232,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
         } else {
             log.error("Saga {} compensation failed", sagaInstanceId);
 
-            // TODO :- either retry or pass to dead letter queue (Resilience Pattern)
+            // TODO :- pass to dead letter queue (Resilience Pattern)
         }
 
     }
