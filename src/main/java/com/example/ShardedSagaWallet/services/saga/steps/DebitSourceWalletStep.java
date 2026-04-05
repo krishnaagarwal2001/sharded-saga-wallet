@@ -1,7 +1,9 @@
 package com.example.ShardedSagaWallet.services.saga.steps;
 
 import com.example.ShardedSagaWallet.entities.Wallet;
+import com.example.ShardedSagaWallet.entities.saga.SagaInstance;
 import com.example.ShardedSagaWallet.enums.SagaSteps;
+import com.example.ShardedSagaWallet.repositories.SagaInstanceRepository;
 import com.example.ShardedSagaWallet.services.WalletService;
 import com.example.ShardedSagaWallet.services.saga.SagaContext;
 import com.example.ShardedSagaWallet.services.saga.SagaStepInterface;
@@ -9,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 
@@ -18,20 +21,27 @@ import java.math.BigDecimal;
 public class DebitSourceWalletStep implements SagaStepInterface {
 
     private final WalletService walletService;
+    private final SagaInstanceRepository sagaInstanceRepository;
+
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
-    public boolean execute(SagaContext sagaContext) {
+    public boolean execute(SagaContext sagaContext, Long sagaInstanceId) {
         Long fromWalletId = sagaContext.getLong("fromWalletId");
         Long fromUserId = sagaContext.getLong("fromUserId");
         BigDecimal amount = sagaContext.getBigDecimal("amount");
 
-        log.info("Debiting source wallet {} with amount {}", fromWalletId, amount);
+        log.info("Debiting source wallet {} and userId {} with amount {}", fromWalletId, fromUserId, amount);
 
         Wallet wallet = walletService.debit(fromWalletId, fromUserId, amount);
 
         sagaContext.put("originalSourceWalletBalance", wallet.getPreviousBalance());
         sagaContext.put("sourceWalletBalanceAfterDebit", wallet.getBalance());
+
+        SagaInstance sagaInstance = sagaInstanceRepository.findById(sagaInstanceId)
+                .orElseThrow(() -> new RuntimeException("SagaInstance not found: " + sagaInstanceId));
+        sagaInstance.setContext(objectMapper.writeValueAsString(sagaContext));
 
         log.info("Debit source wallet step executed successfully");
         return true;
@@ -39,7 +49,7 @@ public class DebitSourceWalletStep implements SagaStepInterface {
 
     @Override
     @Transactional
-    public boolean compensate(SagaContext sagaContext) {
+    public boolean compensate(SagaContext sagaContext, Long sagaInstanceId) {
         Long fromWalletId = sagaContext.getLong("fromWalletId");
         Long fromUserId = sagaContext.getLong("fromUserId");
         BigDecimal amount = sagaContext.getBigDecimal("amount");
@@ -49,6 +59,10 @@ public class DebitSourceWalletStep implements SagaStepInterface {
         Wallet wallet = walletService.credit(fromWalletId, fromUserId, amount);
 
         sagaContext.put("sourceWalletBalanceAfterCreditCompensation", wallet.getBalance());
+
+        SagaInstance sagaInstance = sagaInstanceRepository.findById(sagaInstanceId)
+                .orElseThrow(() -> new RuntimeException("SagaInstance not found: " + sagaInstanceId));
+        sagaInstance.setContext(objectMapper.writeValueAsString(sagaContext));
 
         log.info("Compensation executed successfully");
         return true;

@@ -4,9 +4,9 @@ import com.example.ShardedSagaWallet.enums.SagaSteps;
 
 public interface SagaStepInterface {
 
-    boolean execute (SagaContext sagaContext);
+    boolean execute(SagaContext sagaContext, Long sagaInstanceId);
 
-    boolean compensate (SagaContext sagaContext);
+    boolean compensate(SagaContext sagaContext, Long sagaInstanceId);
 
     SagaSteps getName();
 }

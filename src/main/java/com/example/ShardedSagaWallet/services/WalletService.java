@@ -43,7 +43,7 @@ public class WalletService {
          otherwise pessimistic locking and dirty checking will not work as expected.
      */
     private Wallet getWalletWithLock(Long walletId, Long userId) {
-        log.info("Getting wallet (lock) with id {}", walletId);
+        log.info("Getting wallet (lock) with walletId {} and userId {}", walletId, userId);
         return walletRepository.findByIdAndUserIdWithLock(walletId, userId)
                 .orElseThrow(() -> new RuntimeException("Wallet not found"));
     }

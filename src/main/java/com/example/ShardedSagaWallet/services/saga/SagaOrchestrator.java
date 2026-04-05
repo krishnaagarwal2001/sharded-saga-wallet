@@ -60,7 +60,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
             throw new RuntimeException("Saga step not found");
         }
 
-        //we are finding in db in case of retries
+        // we are finding in db in case of retries
         SagaStep sagaStepDB = sagaStepRepository
                 .findBySagaInstanceIdAndStepNameAndStatus(sagaInstanceId, stepName, StepStatus.PENDING).orElse(
                         SagaStep.builder().sagaInstanceId(sagaInstanceId).stepName(stepName).status(StepStatus.PENDING)
@@ -76,7 +76,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
             sagaStepDB.markAsRunning(); // update the status as running
             sagaStepRepository.save(sagaStepDB);
 
-            boolean success = step.execute(sagaContext);
+            boolean success = step.execute(sagaContext, sagaInstanceId);
 
             if (success) {
                 sagaStepDB.markAsCompleted(); // update the status as completed
@@ -100,7 +100,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
         } catch (Exception e) {
             sagaStepDB.markAsFailed();
             sagaStepRepository.save(sagaStepDB);
-            log.error("Failed to execute step {}", stepName);
+            log.error("Failed to execute step {}", stepName, e);
             return false;
         }
     }
@@ -117,7 +117,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
             throw new RuntimeException("Saga step not found");
         }
 
-        //we are finding in db in case of retries
+        // we are finding in db in case of retries
         SagaStep sagaStepDB = sagaStepRepository
                 .findBySagaInstanceIdAndStepNameAndStatus(sagaInstanceId, stepName, StepStatus.COMPLETED).orElse(
                         null // no such step found in the db
@@ -135,7 +135,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
             sagaStepDB.markAsCompensating();
             sagaStepRepository.save(sagaStepDB);
 
-            boolean success = step.compensate(sagaContext);
+            boolean success = step.compensate(sagaContext, sagaInstanceId);
 
             if (success) {
                 sagaStepDB.markAsCompensated();
@@ -155,7 +155,7 @@ public class SagaOrchestrator implements SagaOrchestratorInterface {
             sagaStepDB.markAsFailed();
             sagaStepRepository.save(sagaStepDB);
 
-            log.error("Failed to execute step {}", stepName);
+            log.error("Failed to compensate step {}", stepName, e);
             return false;
         }
 

@@ -1,72 +1,89 @@
 package com.example.ShardedSagaWallet.services.saga.steps;
 
 import com.example.ShardedSagaWallet.entities.Transaction;
+import com.example.ShardedSagaWallet.entities.saga.SagaInstance;
 import com.example.ShardedSagaWallet.enums.SagaSteps;
 import com.example.ShardedSagaWallet.enums.TransactionStatus;
+import com.example.ShardedSagaWallet.repositories.SagaInstanceRepository;
 import com.example.ShardedSagaWallet.repositories.TransactionRepository;
 import com.example.ShardedSagaWallet.services.saga.SagaContext;
 import com.example.ShardedSagaWallet.services.saga.SagaStepInterface;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UpdateTransactionStatusStep implements SagaStepInterface {
-    private final TransactionRepository transactionRepository;
+        private final TransactionRepository transactionRepository;
+        private final SagaInstanceRepository sagaInstanceRepository;
 
-    @Override
-    public boolean execute(SagaContext sagaContext) {
-        Long transactionId = sagaContext.getLong("transactionId");
+        private final ObjectMapper objectMapper;
 
-        log.info("Updating transaction status for transaction {}", transactionId);
+        @Override
+        @Transactional
+        public boolean execute(SagaContext sagaContext, Long sagaInstanceId) {
+                Long transactionId = sagaContext.getLong("transactionId");
 
-        Transaction transaction = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+                log.info("Updating transaction status for transaction {}", transactionId);
 
-        sagaContext.put("originalTransactionStatus", transaction.getStatus());
+                Transaction transaction = transactionRepository.findById(transactionId)
+                                .orElseThrow(() -> new RuntimeException("Transaction not found"));
 
-        transaction.setStatus(TransactionStatus.SUCCESS);
-        transactionRepository.save(transaction);
+                SagaInstance sagaInstance = sagaInstanceRepository.findById(sagaInstanceId)
+                                .orElseThrow(() -> new RuntimeException("SagaInstance not found: " + sagaInstanceId));
 
-        log.info("Transaction status updated for transaction {}", transactionId);
+                sagaContext.put("originalTransactionStatus", transaction.getStatus());
 
-        sagaContext.put("transactionStatusAfterUpdate", transaction.getStatus());
+                transaction.setStatus(TransactionStatus.SUCCESS);
+                // transactionRepository.save(transaction); Don't need this as hibernate managed entity
 
-        log.info("Update transaction status step executed successfully");
+                log.info("Transaction status updated for transaction {}", transactionId);
 
-        return true;
-    }
+                sagaContext.put("transactionStatusAfterUpdate", transaction.getStatus());
+                sagaInstance.setContext(objectMapper.writeValueAsString(sagaContext));
 
-    @Override
-    public boolean compensate(SagaContext sagaContext) {
-        Long transactionId = sagaContext.getLong("transactionId");
+                log.info("Update transaction status step executed successfully");
 
-        log.info("Compensating transaction status for transaction {}", transactionId);
+                return true;
+        }
 
-        TransactionStatus originalTransactionStatus = TransactionStatus
-                .valueOf(sagaContext.getString("originalTransactionStatus"));
+        @Override
+        @Transactional
+        public boolean compensate(SagaContext sagaContext, Long sagaInstanceId) {
+                Long transactionId = sagaContext.getLong("transactionId");
 
-        Transaction transaction = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+                log.info("Compensating transaction status for transaction {}", transactionId);
 
-        sagaContext.put("originalTransactionStatusBeforeCompensation", transaction.getStatus());
+                TransactionStatus originalTransactionStatus = TransactionStatus
+                                .valueOf(sagaContext.getString("originalTransactionStatus"));
 
-        transaction.setStatus(originalTransactionStatus);
-        transactionRepository.save(transaction);
+                Transaction transaction = transactionRepository.findById(transactionId)
+                                .orElseThrow(() -> new RuntimeException("Transaction not found"));
 
-        log.info("Transaction status compensated for transaction {}", transactionId);
+                SagaInstance sagaInstance = sagaInstanceRepository.findById(sagaInstanceId)
+                                .orElseThrow(() -> new RuntimeException("SagaInstance not found: " + sagaInstanceId));
 
-        sagaContext.put("transactionStatusAfterCompensation", transaction.getStatus());
+                sagaContext.put("originalTransactionStatusBeforeCompensation", transaction.getStatus());
 
-        log.info("Compensating transaction status step executed successfully");
+                transaction.setStatus(originalTransactionStatus);
+                // transactionRepository.save(transaction); Don't need this as hibernate managed entity
 
-        return true;
-    }
+                log.info("Transaction status compensated for transaction {}", transactionId);
 
-    @Override
-    public SagaSteps getName() {
-        return SagaSteps.UPDATE_TRANSACTION_STATUS_STEP;
-    }
+                sagaContext.put("transactionStatusAfterCompensation", transaction.getStatus());
+                sagaInstance.setContext(objectMapper.writeValueAsString(sagaContext));
+
+                log.info("Compensating transaction status step executed successfully");
+
+                return true;
+        }
+
+        @Override
+        public SagaSteps getName() {
+                return SagaSteps.UPDATE_TRANSACTION_STATUS_STEP;
+        }
 }
