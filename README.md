@@ -21,6 +21,7 @@ A production-oriented distributed wallet transfer microservice built with Spring
 - [Code Flow](#code-flow)
 - [API Documentation](#api-documentation)
 - [Domain Model](#domain-model)
+- [Database Design](#database-design)
 - [Persistence and Sharding](#persistence-and-sharding)
 - [Resilience and Compensation](#resilience-and-compensation)
 - [Setup and Run](#setup-and-run)
@@ -362,6 +363,143 @@ Operations:
 - `status`
 - `errorMessage`
 - `stepData`
+
+---
+
+## Database Design
+
+This section outlines the relational database schema used for the sharded wallet system. The design supports horizontal partitioning across multiple MySQL shards while maintaining referential integrity within each shard.
+
+### Entity-Relationship Diagram
+
+```mermaid
+erDiagram
+    USER ||--o{ WALLET : owns
+    WALLET ||--o{ TRANSACTION : "from_wallet"
+    WALLET ||--o{ TRANSACTION : "to_wallet"
+    TRANSACTION ||--|| SAGA_INSTANCE : "orchestrates"
+    SAGA_INSTANCE ||--o{ SAGA_STEP : "executes"
+
+    USER {
+        BIGINT id PK
+        VARCHAR name
+        VARCHAR email
+    }
+
+    WALLET {
+        BIGINT id PK
+        BIGINT user_id FK
+        BOOLEAN is_active
+        DECIMAL balance
+        DECIMAL previous_balance
+    }
+
+    TRANSACTION {
+        BIGINT id PK
+        BIGINT from_wallet_id FK
+        BIGINT to_wallet_id FK
+        DECIMAL amount
+        VARCHAR status
+        VARCHAR type
+        VARCHAR description
+        BIGINT saga_instance_id FK
+    }
+
+    SAGA_INSTANCE {
+        BIGINT id PK
+        VARCHAR status
+        JSON context
+        VARCHAR current_step
+    }
+
+    SAGA_STEP {
+        BIGINT id PK
+        BIGINT saga_instance_id FK
+        VARCHAR step_name
+        VARCHAR status
+        VARCHAR error_message
+        JSON step_data
+    }
+```
+
+### Table Schemas
+
+#### `user`
+```sql
+CREATE TABLE user (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    email VARCHAR(255)
+);
+```
+
+#### `wallet`
+```sql
+CREATE TABLE wallet (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    balance DECIMAL(19,2) DEFAULT 0.00,
+    previous_balance DECIMAL(19,2) DEFAULT 0.00,
+    FOREIGN KEY (user_id) REFERENCES user(id)
+);
+```
+
+#### `transaction`
+```sql
+CREATE TABLE transaction (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    from_wallet_id BIGINT,
+    to_wallet_id BIGINT,
+    amount DECIMAL(19,2) NOT NULL,
+    status ENUM('PENDING', 'SUCCESS', 'FAILED', 'CANCELLED') DEFAULT 'PENDING',
+    type ENUM('TRANSFER', 'DEPOSIT', 'WITHDRAWAL') DEFAULT 'TRANSFER',
+    description VARCHAR(500),
+    saga_instance_id BIGINT,
+    FOREIGN KEY (from_wallet_id) REFERENCES wallet(id),
+    FOREIGN KEY (to_wallet_id) REFERENCES wallet(id),
+    FOREIGN KEY (saga_instance_id) REFERENCES saga_instance(id)
+);
+```
+
+#### `saga_instance`
+```sql
+CREATE TABLE saga_instance (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    status ENUM('STARTED', 'RUNNING', 'COMPLETED', 'FAILED', 'COMPENSATING', 'COMPENSATED') DEFAULT 'STARTED',
+    context JSON,
+    current_step VARCHAR(255)
+);
+```
+
+#### `saga_step`
+```sql
+CREATE TABLE saga_step (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    saga_instance_id BIGINT NOT NULL,
+    step_name VARCHAR(255) NOT NULL,
+    status ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'COMPENSATING', 'COMPENSATED', 'SKIPPED') DEFAULT 'PENDING',
+    error_message VARCHAR(1000),
+    step_data JSON,
+    FOREIGN KEY (saga_instance_id) REFERENCES saga_instance(id)
+);
+```
+
+### Key Relationships and Constraints
+
+- **User-Wallet**: One-to-many (a user can have multiple wallets)
+- **Wallet-Transaction**: Many-to-many through `from_wallet_id` and `to_wallet_id`
+- **Transaction-Saga Instance**: One-to-one (each transaction is orchestrated by one saga)
+- **Saga Instance-Saga Step**: One-to-many (a saga executes multiple steps)
+- **Foreign Keys**: Enforced within each shard; cross-shard references are handled at the application level
+- **Indexes**: Primary keys are auto-indexed; consider adding indexes on `user_id`, `from_wallet_id`, `to_wallet_id`, and `saga_instance_id` for query performance
+
+### Design Considerations
+
+- **Sharding Compatibility**: Tables are designed for horizontal partitioning by ID or user_id to minimize cross-shard queries
+- **JSON Storage**: `context` and `step_data` use JSON columns for flexible saga state persistence
+- **Enums**: Status and type fields use ENUMs for data integrity and performance
+- **Decimal Precision**: Balance and amount fields use DECIMAL(19,2) for accurate financial calculations
 
 ---
 
