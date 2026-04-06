@@ -164,7 +164,8 @@ sequenceDiagram
 
 ---
 
-## Design
+<a name="high-level-design"></a>
+## High-Level Design
 
 ### Layered Architecture
 
@@ -181,6 +182,9 @@ sequenceDiagram
 - **Layered Architecture**: Separates API, business logic, orchestration, and persistence concerns for maintainability and testability.
 - **Dependency Injection**: Spring wiring supports loose coupling and easier component substitution.
 - **Resilience Pattern**: Retry-based compensation improves fault tolerance for distributed rollback.
+
+<a name="low-level-design"></a>
+## Low-Level Design
 
 ### Low-Level Design Patterns
 
